@@ -162,5 +162,9 @@ cython_debug/
 #VsCode
 .vscode/
 
-#Costum Khaled
+#Playground Khaled
 sandbox.ipynb
+# ignore results 
+prediction*.csv
+submission*.csv
+fine_tune*
