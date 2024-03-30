@@ -164,7 +164,5 @@ cython_debug/
 
 #Playground Khaled
 sandbox.ipynb
-# ignore results 
-prediction*.csv
-submission*.csv
+# To store predictions for different iterations
 fine_tune*
