@@ -4,7 +4,9 @@ import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer, KNNImputer, SimpleImputer
-
+from sklearn.linear_model import BayesianRidge
+from sklearn.ensemble import RandomForestRegressor
+#from xgbimputer import XGBImputer
 class TsMissing(object):
     """
     A class for handling missing values in time series data.
@@ -16,7 +18,7 @@ class TsMissing(object):
     """
     
     # List of supported imputation strategies
-    _strategies = ['forward fill', 'backward fill', 'linear', 'MICE', 'knn' ] # 'mean',  'theta', 
+    _strategies = ['forward fill', 'backward fill', 'linear', 'BayesianRidge', 'knn', 'RandomForestRegressor'] # 'mean',  'theta', 
     
     def __init__(self, data, columns=None, bins=10):
         """
@@ -38,6 +40,7 @@ class TsMissing(object):
         self.intervals_missing, self.intervals_lengths_missing = self.get_lengths_intervals(self.index_missing_values)
         self.intervals_not_missing, self.intervals_lengths_not_missing = self.get_lengths_intervals(self.index_not_missing)
         self.bins, self.bins_probabilities = self.intervals_lengths_histogram()
+        self.corr = self.correlation()
             
     def get_missing_index(self):
         """
@@ -199,6 +202,17 @@ class TsMissing(object):
                 return True
         return False
     
+    def correlation(self, method='pearson'):
+        corr_dict = {}
+        for column in self.df.columns:
+            corr = {}
+            # Calculate the correlation between the column and all the other columns
+            for column2 in self.df.columns:
+                if column == column2:
+                    continue
+                corr[column2] = self.df[column].corr(self.df[column2], method=method)
+            corr_dict[column] = corr
+        return corr_dict    
     
     def _flatten_intervals_(self, intervals):
         """
@@ -263,10 +277,28 @@ class TsMissing(object):
                 df_pred = pd.DataFrame(imputer.fit_transform(df_missing), columns=self.df.columns)
                 df_pred.index = self.df.index
                 
-            elif strategy == 'MICE':
-                imputer = IterativeImputer(random_state=random_state, n_nearest_features=5, max_iter=50, tol=0.001)
+            elif strategy == 'BayesianRidge':
+                imputer = IterativeImputer(random_state=random_state, n_nearest_features=None, max_iter=10, tol=1e-2, estimator=BayesianRidge())
                 df_pred = pd.DataFrame(imputer.fit_transform(df_missing), columns=self.df.columns)
                 df_pred.index = self.df.index
+                
+            elif strategy == 'RandomForestRegressor':
+                imputer = IterativeImputer(random_state=random_state, n_nearest_features=None, max_iter=10, tol=1e-2, estimator=RandomForestRegressor())
+                df_pred = pd.DataFrame(imputer.fit_transform(df_missing), columns=self.df.columns)
+                df_pred.index = self.df.index
+                
+            # elif strategy == 'XGBoost': # @TODO
+            #     
+            #     # xgboost hyperparameters
+            #     params = {
+            #         'learning_rate':0.3,
+            #         'n_estimators':100,
+            #         'max_depth':3,
+            #     }
+                
+            #     df_pred = df_missing.copy()
+            #     for column in self.df.columns:
+            #         df_pred[column]  = self.impute_XGBoost(column, random_state=random_state,n_features=4, params = params)
                 
             for column in self.df.columns:
                 # Store the predicted values of the missing values
@@ -309,3 +341,22 @@ class TsMissing(object):
         
     def plot_imputed(self): # @TODO
         pass
+        
+    # def impute_XGBoost(self, column, random_state=42, n_iter=10, n_jobs=4, n_features=None, params={'learning_rate':0.3}):
+        
+    #     if n_features is None:
+    #         features = self.df.columns.tolist()
+    #     else:
+    #         pass
+    #         features = sorted(self.corr["0"], key=lambda x: self.corr["0"][x], reverse=True)[:n_features]
+        
+    #     data_imputed = XGBImputer(with_cv=True).fit_transform(
+    #                     data=self.df,
+    #                     missing_values_variable=column,
+    #                     features=features,
+    #                     params= params,
+    #                     n_jobs=4, # Parallelizing Cross-validation
+    #                     n_iter=10 # Random choices among parameters grid
+    #                 )
+    #     return data_imputed
+    
