@@ -1,6 +1,9 @@
 import pandas as pd
 import random 
 import numpy as np
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer, KNNImputer, SimpleImputer
 
 class TsMissing(object):
     """
@@ -11,6 +14,9 @@ class TsMissing(object):
     - columns (list): The columns to consider for missing values. If None, all columns will be considered.
     - bins (int): The number of bins to use for creating intervals of missing values.
     """
+    
+    # List of supported imputation strategies
+    _strategies = ['forward fill', 'backward fill', 'linear', 'MICE', 'knn' ] # 'mean',  'theta', 
     
     def __init__(self, data, columns=None, bins=10):
         """
@@ -158,7 +164,7 @@ class TsMissing(object):
                 missing_interval = (start_index, start_index + pd.Timedelta(days=interval_size))
                 #print(interval,missing_interval,missing_interval[1] > interval[1] , self._interval_is_overlapping(missing_interval, test_gaps))
                 # check if the gap is larger than the data and if it is overlapping with the missing intervals
-                if missing_interval[1] > interval[1] or self._interval_is_overlapping(missing_interval, test_gaps):
+                if missing_interval[1] > interval[1] or self._interval_is_overlapping_(missing_interval, test_gaps):
                     continue 
                 else:
                     break     
@@ -176,7 +182,7 @@ class TsMissing(object):
         else:    
             return self._flatten_intervals_(test_gaps)
         
-    def _interval_is_overlapping(self, interval, intervals):
+    def _interval_is_overlapping_(self, interval, intervals):
         """
         Check if an interval is overlapping with a list of intervals.
         
@@ -192,6 +198,7 @@ class TsMissing(object):
             if interval[0] <= end and interval[1] >= start: 
                 return True
         return False
+    
     
     def _flatten_intervals_(self, intervals):
         """
@@ -211,5 +218,94 @@ class TsMissing(object):
         return data
 
     
+    def impute_all(self, test, metric = 'mae', random_state=42):
+        
+        # Create a dataframe to store the scores of the different imputation methods
+        score_df = pd.DataFrame(columns=["strategy"] + self.df.columns.tolist())
+        # Create a dataframe to store the missing values
+        df_missing = self.df.copy()
+        
+        # Create a dictionary to store the original data minus the missing test data
+        self.original_minus_null_index = {}
+        # Create a dictionary to store the true values of the missing values
+        y_true = {}   
+        y_pred = {}
+        # Create a dictionary to store the data after imputation
+        df_pred_dict = {}
+        
+          
+        
+        for column in self.df.columns:
+            # Store the index of the original data minus the missing test data
+            self.original_minus_null_index[column] = list(set(self.df[column].loc[self.index_not_missing[column]].index).difference(set(test[column])))
+            # Store the true values of the missing values
+            y_true[column] = self.df[column].loc[test[column]]
+            # Set the values of the missing test values to NaN
+            df_missing[column].loc[test[column]] = np.nan
+
+
+        for strategy in self._strategies:
+            
+            row = {"strategy": strategy}             
+           
+            
+            if strategy == 'forward fill':
+                df_pred = df_missing.ffill()
+                
+            elif strategy == 'backward fill':
+                df_pred = df_missing.bfill()
+                
+            elif strategy == 'linear':
+                df_pred = df_missing.interpolate(method='linear')
+            
+            elif strategy == 'knn':
+                imputer = KNNImputer(n_neighbors=50)
+                df_pred = pd.DataFrame(imputer.fit_transform(df_missing), columns=self.df.columns)
+                df_pred.index = self.df.index
+                
+            elif strategy == 'MICE':
+                imputer = IterativeImputer(random_state=random_state, n_nearest_features=5, max_iter=50, tol=0.001)
+                df_pred = pd.DataFrame(imputer.fit_transform(df_missing), columns=self.df.columns)
+                df_pred.index = self.df.index
+                
+            for column in self.df.columns:
+                # Store the predicted values of the missing values
+                y_pred = df_pred[column].loc[test[column]]  
+                
+                # Check if the imputation was successful in total
+                if df_pred[column].isnull().sum() > 0:
+                    print("Could not impute all data in column", column, "using the strategy", strategy)
+              
+                
+                # Check if the imputation was successful for test
+                if y_pred.isnull().sum() > 0:
+                   print("Could not impute all test data in column", column, "using the strategy", strategy)
+                   continue          
+                                               
+                # Calculate the score of the imputation
+                score = self.evaluate(y_true[column], y_pred, metric=metric)
+                # Store the score
+                row[column] = score
+            
+            
+            score_df = pd.concat([score_df, pd.DataFrame([row])], ignore_index=True)
+            df_pred_dict[strategy] = df_pred.copy()
+            
+        return score_df, df_pred_dict, y_true, 
+        
+    def evaluate(self, y_true, y_pred,  metric= 'mae'):
+        
+        if metric == 'mae':
+            return mean_absolute_error(y_true, y_pred)
+        elif metric == 'mse':
+            return mean_squared_error(y_true, y_pred)
+            
     
+    def plot_missing(self): # @TODO
+        pass
     
+    def info(self): # @TODO
+        pass
+        
+    def plot_imputed(self): # @TODO
+        pass
