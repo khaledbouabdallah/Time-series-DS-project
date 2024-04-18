@@ -3,7 +3,7 @@ import random
 import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.experimental import enable_iterative_imputer
-from sklearn.impute import IterativeImputer, KNNImputer, SimpleImputer
+from sklearn.impute import IterativeImputer, KNNImputer
 from sklearn.linear_model import BayesianRidge
 from sklearn.ensemble import RandomForestRegressor
 #from xgbimputer import XGBImputer
@@ -231,7 +231,6 @@ class TsMissing(object):
               
         return data
 
-    
     def impute_all(self, test, metric = 'mae', random_state=42):
         
         # Create a dataframe to store the scores of the different imputation methods
@@ -341,22 +340,3 @@ class TsMissing(object):
         
     def plot_imputed(self): # @TODO
         pass
-        
-    # def impute_XGBoost(self, column, random_state=42, n_iter=10, n_jobs=4, n_features=None, params={'learning_rate':0.3}):
-        
-    #     if n_features is None:
-    #         features = self.df.columns.tolist()
-    #     else:
-    #         pass
-    #         features = sorted(self.corr["0"], key=lambda x: self.corr["0"][x], reverse=True)[:n_features]
-        
-    #     data_imputed = XGBImputer(with_cv=True).fit_transform(
-    #                     data=self.df,
-    #                     missing_values_variable=column,
-    #                     features=features,
-    #                     params= params,
-    #                     n_jobs=4, # Parallelizing Cross-validation
-    #                     n_iter=10 # Random choices among parameters grid
-    #                 )
-    #     return data_imputed
-    
