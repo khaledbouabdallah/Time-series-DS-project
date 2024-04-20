@@ -133,9 +133,8 @@ def objective(trial):
     reg_lambda = trial.suggest_float("reg_lambda", 1e-5, 1e-1, log=True)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-1, log=True)
     
-    # Get training and testing data
-    #X_train, X_test, y_train, y_test = create_data(df, lags=lag, steps=100, y_columns=['6'], test_size=100, cuda=True)
-    X_train, X_val, y_train, y_val = create_data(df, lags=lag, steps=0, y_columns=['6'], test_size=100, cuda=True)
+    # Get training and testing dat
+    X_train, X_val, y_train, y_val = create_data(df, lags=lag, steps=100, y_columns=['6'], test_size=200, cuda=True)
         
     # Create and train the model
     xgb = XGBRegressor(tree_method="hist", random_state=random_seed, device='cuda', eval_metric = 'mae',
