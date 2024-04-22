@@ -22,7 +22,7 @@ BATCH_SIZE = 2048
 
 #torch.autograd.set_detect_anomaly(True)
 
-df = pd.read_csv('exchange_rate_imputed.csv')
+df = pd.read_csv('../data/exchange_rate_imputed.csv')
 df['date'] = pd.to_datetime(df['date'])
 df.set_index('date', inplace=True)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
